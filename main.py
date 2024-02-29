@@ -7,7 +7,6 @@ import network
 import utime as time
 import dht
 
-import auth
 from hardware import DEVICE_ID, DHT_PIN, RED_LED, YELLOW_LED
 from auth import WIFI_SSID, WIFI_PASSWORD
 from mqtt_functions import recieved_callback, mqtt_connect, mqtt_client_publish, send_led_status
