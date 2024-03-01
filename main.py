@@ -1,64 +1,80 @@
-# main.py -- put your code here!
 from umqtt.simple import MQTTClient
-from machine import Pin
-
-import ujson
 import network
 import utime as time
-import dht
 
-from hardware import DEVICE_ID, DHT_PIN, RED_LED, YELLOW_LED
-from auth import WIFI_SSID, WIFI_PASSWORD
-from mqtt_functions import recieved_callback, mqtt_connect, mqtt_client_publish, send_led_status
-from data_functions import create_json_data
+from hardware import DEVICE_ID, dht_sensor, RED_LED, YELLOW_LED, FLASH_LED
+from mqtt import MQTT_BROKER, MQTT_CLIENT, MQTT_TELEMETRY_TOPIC, MQTT_CONTROL_TOPIC
+from data_functions import create_json_data, send_led_status
+from mqtt_functions import mqtt_connect, mqtt_client_publish
+from wifi import wifi_connect
+
+global mqtt_client
+telemetry_data_old = ''
 
 
-# ----------------- Power on --------------------------------
+# ------------------------ callback and connect mqtt functions ---------------------------------------------------
+def mqtt_connect():
+    print('Connection in progress...\n')
+    mqtt_client = MQTTClient(MQTT_CLIENT, MQTT_BROKER, user="", 
+    password="")
+    mqtt_client.set_callback(did_recieve_callback)
+    mqtt_client.connect()
+    print('Connected successfully \n')
+    mqtt_client.subscribe(MQTT_CONTROL_TOPIC)
+    
+    return mqtt_client
+
+
+def did_recieve_callback(topic, message):
+    print('\n\nData Recieved! \ntopic = {0}, message = {1}'.format(topic, message))
+
+    # device_id/lamp/color/state
+    # device_id/lamp/state
+    # lamp/state
+    if topic == MQTT_CONTROL_TOPIC.encode():
+        if message == ('{0}/lamp/yellow/on'.format(DEVICE_ID)).encode():
+            YELLOW_LED.on()
+        elif message == ('{0}/lamp/yellow/off'.format(DEVICE_ID)).encode():
+            YELLOW_LED.off()
+        elif message == ('{0}/lamp/red/on'.format(DEVICE_ID)).encode():
+            RED_LED.on()
+        elif message == ('{0}/lamp/red/off'.format(DEVICE_ID)).encode():
+            RED_LED.off()
+        elif message == ('{0}/lamp/on'.format(DEVICE_ID)).encode() or message == b'lamp/on':
+            YELLOW_LED.on()
+            RED_LED.on()
+        elif message == ('{0}/lamp/off'.format(DEVICE_ID)).encode() or message == b'lamp/off':
+            YELLOW_LED.off()
+            RED_LED.off()
+        elif message == ('{0}/status'.format(DEVICE_ID)).encode() or message == ('status').encode():
+            global telemetry_data_old
+            mqtt_client_publish(MQTT_TELEMETRY_TOPIC, telemetry_data_old, mqtt_client)
+            send_led_status(mqtt_client)
+        else:
+            return
+
+# ----------------------------- end of callback and connect mqtt functions -----------------------------------
+
+
+# ----------------------------- Main ------------------------------------------
+YELLOW_LED.on()
 RED_LED.on()
 
-
-# ----------------- MQTT setup ----------------------------
-MQTT_BROKER           = "mqtt-dashboard.com"
-
-MQTT_TELEMETRY_TOPIC  = "iot/telemetry"
-MQTT_CONTROL_TOPIC    = "iot/control"
-
-
-# --------------- Setup done -------------------------------
-YELLOW_LED.on()
-
-
-
-# ------------------- main --------------------------------------
-
-# Connect to Wi-Fi
-wifi_client = network.WLAN(network.STA_IF)
-wifi_client.active(True)
-print('\n Connecting the device to WiFi...\n')
-wifi_client.connect(WIFI_SSID, WIFI_PASSWORD)
-
-
-# Wait for Wi-Fi connection
-while not wifi_client.isconnected():
-    print('Connecting to Wi-Fi... \n')
-    time.sleep(1)
-print('Wi-Fi connected successfully')
-print(wifi_client.ifconfig())           # Get/set IP-level network interface parameters
-
+wifi_connect()
 
 # Connect to MQTT
 mqtt_client = mqtt_connect()
-RED_LED.off()
+mqtt_client_publish(MQTT_CONTROL_TOPIC, 'lamp/off', mqtt_client)
+
 YELLOW_LED.off()
-dht_sensor = dht.DHT22(DHT_PIN)
+RED_LED.off()
 
-telemetry_data_old = ''
-telemetry_data_new = ''
 
-# ---------------- main loop ---------------------------------
+# ------------------- main loop --------------------------------------
 while True:
-    mqtt_client.check_msg()             # Check if the server has any pending messages
-    print('. ', end="")
+    mqtt_client.check_msg()
+    print(". ", end="")
+    FLASH_LED.on()
     
     try:
         dht_sensor.measure()
@@ -66,12 +82,14 @@ while True:
         telemetry_data_new = create_json_data(dht_sensor.temperature(), dht_sensor.humidity())
     except OSError:
         print("cant read")
+    
+    time.sleep(0.5)
+    FLASH_LED.off()
+
+    telemetry_data_new = create_json_data(dht_sensor.temperature(), dht_sensor.humidity())
 
     if telemetry_data_new != telemetry_data_old:
-        YELLOW_LED.on()
         mqtt_client_publish(MQTT_TELEMETRY_TOPIC, telemetry_data_new, mqtt_client)
         telemetry_data_old = telemetry_data_new
-        YELLOW_LED.off()
 
     time.sleep(0.1)
-
