@@ -49,9 +49,10 @@ def did_recieve_callback(topic, message):
         elif message == ('{0}/status'.format(DEVICE_ID)).encode() or message == ('status').encode():
             global telemetry_data_old
             mqtt_client_publish(MQTT_TELEMETRY_TOPIC, telemetry_data_old, mqtt_client)
-            send_led_status(mqtt_client)
         else:
             return
+        
+        send_led_status(mqtt_client)
 
 # ----------------------------- end of callback and connect mqtt functions -----------------------------------
 
@@ -64,7 +65,7 @@ wifi_connect()
 
 # Connect to MQTT
 mqtt_client = mqtt_connect()
-mqtt_client_publish(MQTT_CONTROL_TOPIC, 'lamp/off', mqtt_client)
+mqtt_client_publish(MQTT_CONTROL_TOPIC, 'lamp/off', mqtt_client)        #clears the mqtt cache
 
 YELLOW_LED.off()
 RED_LED.off()

@@ -9,13 +9,13 @@ from mqtt_functions import mqtt_client_publish
 # ---------------- data methods -----------------------------------
 
 def create_json_data(temp, humidity):
+    
     data = ujson.dumps({
         "device_id": DEVICE_ID,
         "temp": temp,
         "humidity": humidity,
         "type" : "sensor",
     })
-    
     return data
 
 
