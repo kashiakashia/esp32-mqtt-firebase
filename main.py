@@ -5,18 +5,19 @@ import utime as time
 from hardware import DEVICE_ID, dht_sensor, RED_LED, YELLOW_LED, FLASH_LED
 from mqtt import MQTT_BROKER, MQTT_CLIENT, MQTT_TELEMETRY_TOPIC, MQTT_CONTROL_TOPIC
 from data_functions import create_json_data, send_led_status
-from mqtt_functions import mqtt_connect, mqtt_client_publish
+from mqtt_functions import mqtt_client_publish
 from wifi import wifi_connect
+from auth import MQTT_USER, MQTT_PASSWORD, MQTT_BROKER 
 
 global mqtt_client
 telemetry_data_old = ''
 
 
 # ------------------------ callback and connect mqtt functions ---------------------------------------------------
-def mqtt_connect():
+def mqtt_connect(user, password):
     print('Connection in progress...\n')
-    mqtt_client = MQTTClient(MQTT_CLIENT, MQTT_BROKER, user="", 
-    password="")
+    mqtt_client = MQTTClient(MQTT_CLIENT, MQTT_BROKER, user=user, 
+    password=password, ssl=True, ssl_params={'server_hostname': MQTT_BROKER})
     mqtt_client.set_callback(did_recieve_callback)
     mqtt_client.connect()
     print('Connected successfully \n')
@@ -64,7 +65,7 @@ RED_LED.on()
 wifi_connect()
 
 # Connect to MQTT
-mqtt_client = mqtt_connect()
+mqtt_client = mqtt_connect(MQTT_USER, MQTT_PASSWORD)
 mqtt_client_publish(MQTT_CONTROL_TOPIC, 'lamp/off', mqtt_client)        #clears the mqtt cache
 
 YELLOW_LED.off()
