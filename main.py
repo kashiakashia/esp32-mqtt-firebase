@@ -2,7 +2,7 @@ from umqtt.simple import MQTTClient
 import network
 import utime as time
 
-from hardware import DEVICE_ID, dht_sensor, RED_LED, YELLOW_LED, FLASH_LED
+from hardware import DEVICE_ID, dht_sensor, RED_LED, YELLOW_LED, FLASH_LED, ldr_adc
 from mqtt import MQTT_BROKER, MQTT_CLIENT, MQTT_TELEMETRY_TOPIC, MQTT_CONTROL_TOPIC
 from data_functions import create_json_data, send_led_status
 from mqtt_functions import mqtt_client_publish
@@ -78,20 +78,23 @@ while True:
     print(". ", end="")
     FLASH_LED.on()
     
+    ldr = ldr_adc.read_u16()
+    ldr = round((ldr/ 65535) * 100, 2)
+    
     try:
         dht_sensor.measure()
-        time.sleep(5)
-        telemetry_data_new = create_json_data(dht_sensor.temperature(), dht_sensor.humidity())
+        time.sleep(1)
+        telemetry_data_new = create_json_data(dht_sensor.temperature(), dht_sensor.humidity(), ldr)
     except OSError:
         print("cant read")
     
     time.sleep(0.5)
     FLASH_LED.off()
 
-    telemetry_data_new = create_json_data(dht_sensor.temperature(), dht_sensor.humidity())
+    telemetry_data_new = create_json_data(dht_sensor.temperature(), dht_sensor.humidity(), ldr)
 
     if telemetry_data_new != telemetry_data_old:
         mqtt_client_publish(MQTT_TELEMETRY_TOPIC, telemetry_data_new, mqtt_client)
         telemetry_data_old = telemetry_data_new
 
-    time.sleep(0.1)
+    time.sleep(0.5)

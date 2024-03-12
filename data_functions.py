@@ -8,12 +8,13 @@ from mqtt_functions import mqtt_client_publish
 
 # ---------------- data methods -----------------------------------
 
-def create_json_data(temp, humidity):
+def create_json_data(temp, humidity, light):
     
     data = ujson.dumps({
         "device_id": DEVICE_ID,
         "temp": temp,
         "humidity": humidity,
+        "light [%]" : light,
         "type" : "sensor",
     })
     return data
